@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/zach030/morpho-liquidator-bot/config"
+
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -55,7 +57,7 @@ type Morpho struct {
 	pendingTx     map[*types.Transaction]struct{}
 }
 
-func NewMorpho(cfg *Config) *Morpho {
+func NewMorpho(cfg *config.Config) *Morpho {
 	httpClient, err := ethclient.Dial(cfg.HttpEndpoint)
 	if err != nil {
 		panic(err)
@@ -130,7 +132,7 @@ func (m *Morpho) processNewBlock(header *types.Header) {
 }
 
 func (m *Morpho) processNewLog(vLog *types.Log) {
-	if vLog.Address != MorphoAddress {
+	if vLog.Address != pkg.MorphoAddress {
 		log.Debugf("morpho: unknown contract: %s", vLog.Address.Hex())
 		return
 	}
@@ -491,6 +493,7 @@ func (m *Morpho) loadMarketPositions(marketId string) (map[string]*Position, err
 		return nil, err
 	}
 	_, err = m.blueClient.R().
+		SetHeader("Content-Type", "application/json").
 		SetBody(bytes.NewBuffer(jsonData)).
 		SetResult(&res).
 		Post("")
@@ -539,6 +542,7 @@ func (m *Morpho) getMarketInfo(id string) (*MorphoMarket, error) {
 	}
 	var res MorphoMarketsResp
 	_, err = m.blueClient.R().
+		SetHeader("Content-Type", "application/json").
 		SetBody(payloadBytes).
 		SetResult(&res).
 		Post("")

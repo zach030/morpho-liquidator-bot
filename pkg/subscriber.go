@@ -1,7 +1,9 @@
-package main
+package pkg
 
 import (
 	"context"
+
+	"github.com/zach030/morpho-liquidator-bot/config"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -15,7 +17,7 @@ var (
 	MorphoAddress = common.HexToAddress("0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb")
 )
 
-type subscriber struct {
+type Subscriber struct {
 	ethClient *ethclient.Client
 	wsClient  *ethclient.Client
 	headers   chan *types.Header
@@ -24,7 +26,7 @@ type subscriber struct {
 	cancel    context.CancelFunc
 }
 
-func newSubscriber(cfg *Config) *subscriber {
+func NewSubscriber(cfg *config.Config) *Subscriber {
 	httpClient, err := ethclient.Dial(cfg.HttpEndpoint)
 	if err != nil {
 		panic(err)
@@ -33,7 +35,7 @@ func newSubscriber(cfg *Config) *subscriber {
 	if err != nil {
 		panic(err)
 	}
-	return &subscriber{
+	return &Subscriber{
 		ethClient: httpClient,
 		wsClient:  wsClient,
 		headers:   make(chan *types.Header),
@@ -42,7 +44,7 @@ func newSubscriber(cfg *Config) *subscriber {
 	}
 }
 
-func (s *subscriber) Subscribe() {
+func (s *Subscriber) Subscribe() {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	go s.subscribeNewBlock(ctx)
@@ -50,25 +52,25 @@ func (s *subscriber) Subscribe() {
 	go s.subscribePendingTx(ctx)
 }
 
-func (s *subscriber) UnSubscribe() {
+func (s *Subscriber) UnSubscribe() {
 	s.cancel()
 	s.wsClient.Client().Close()
 	s.wsClient.Close()
 }
 
-func (s *subscriber) Block() <-chan *types.Header {
+func (s *Subscriber) Block() <-chan *types.Header {
 	return s.headers
 }
 
-func (s *subscriber) PendingTx() <-chan *types.Transaction {
+func (s *Subscriber) PendingTx() <-chan *types.Transaction {
 	return s.txs
 }
 
-func (s *subscriber) Log() <-chan *types.Log {
+func (s *Subscriber) Log() <-chan *types.Log {
 	return s.logs
 }
 
-func (s *subscriber) subscribeNewBlock(ctx context.Context) {
+func (s *Subscriber) subscribeNewBlock(ctx context.Context) {
 	headers := make(chan *types.Header)
 	sub, err := s.wsClient.SubscribeNewHead(context.Background(), headers)
 	if err != nil {
@@ -92,7 +94,7 @@ func (s *subscriber) subscribeNewBlock(ctx context.Context) {
 	}
 }
 
-func (s *subscriber) subscribeEvent(ctx context.Context) {
+func (s *Subscriber) subscribeEvent(ctx context.Context) {
 	query := ethereum.FilterQuery{
 		Addresses: []common.Address{
 			MorphoAddress,
@@ -122,7 +124,7 @@ func (s *subscriber) subscribeEvent(ctx context.Context) {
 	}
 }
 
-func (s *subscriber) subscribePendingTx(ctx context.Context) {
+func (s *Subscriber) subscribePendingTx(ctx context.Context) {
 	cli := gethclient.New(s.wsClient.Client())
 	pending := make(chan *types.Transaction)
 	sub, err := cli.SubscribeFullPendingTransactions(context.Background(), pending)
