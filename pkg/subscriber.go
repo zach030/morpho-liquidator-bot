@@ -38,9 +38,9 @@ func NewSubscriber(cfg *config.Config) *Subscriber {
 	return &Subscriber{
 		ethClient: httpClient,
 		wsClient:  wsClient,
-		headers:   make(chan *types.Header),
-		txs:       make(chan *types.Transaction),
-		logs:      make(chan *types.Log),
+		headers:   make(chan *types.Header, 100),
+		txs:       make(chan *types.Transaction, 100),
+		logs:      make(chan *types.Log, 100),
 	}
 }
 
@@ -49,7 +49,7 @@ func (s *Subscriber) Subscribe() {
 	s.cancel = cancel
 	go s.subscribeNewBlock(ctx)
 	go s.subscribeEvent(ctx)
-	go s.subscribePendingTx(ctx)
+	// go s.subscribePendingTx(ctx)
 }
 
 func (s *Subscriber) UnSubscribe() {
@@ -85,11 +85,9 @@ func (s *Subscriber) subscribeNewBlock(ctx context.Context) {
 		case err := <-sub.Err():
 			log.Errorf("[Subscriber] headers subscription error: %v", err)
 			return
-		case header := <-s.headers:
+		case header := <-headers:
 			log.Infof("[Subscriber] new headers timestamp=%d number=%v", header.Time, header.Number.Uint64())
-			go func() {
-				s.headers <- header
-			}()
+			s.headers <- header
 		}
 	}
 }
@@ -117,9 +115,7 @@ func (s *Subscriber) subscribeEvent(ctx context.Context) {
 			return
 		case vLog := <-logs:
 			log.Debugf("[Subscriber] vLog address=%v txHash=%v block=%v", vLog.Address.Hex(), vLog.TxHash.Hex(), vLog.BlockNumber)
-			go func() {
-				s.logs <- &vLog
-			}()
+			s.logs <- &vLog
 		}
 	}
 }
